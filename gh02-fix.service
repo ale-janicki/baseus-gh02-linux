@@ -1,0 +1,11 @@
+[Unit]
+Description=Re-enumerate the Baseus GH02 dongle once gh02_fix is loaded
+After=systemd-modules-load.service
+ConditionPathExists=/sys/module/gh02_fix
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/gh02-reenumerate
+
+[Install]
+WantedBy=multi-user.target
