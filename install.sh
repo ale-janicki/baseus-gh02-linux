@@ -1,6 +1,4 @@
 #!/bin/sh
-# Install gh02_fix as a DKMS module (rebuilt automatically for every new kernel),
-# load it at boot, and re-enumerate the dongle if it enumerated before the module.
 set -e
 [ "$(id -u)" = 0 ] || { echo "run with sudo" >&2; exit 1; }
 command -v dkms >/dev/null || { echo "dkms not found: sudo apt install dkms build-essential linux-headers-$(uname -r)" >&2; exit 1; }

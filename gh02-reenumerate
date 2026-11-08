@@ -1,15 +1,12 @@
 #!/bin/sh
-# Power-cycle the port of any GH02 dongle that enumerated before gh02_fix was loaded
-# (4 interfaces instead of 6), so it enumerates again through the module.
 for d in /sys/bus/usb/devices/*; do
 	[ "$(cat "$d/idVendor" 2>/dev/null)" = "10d6" ] || continue
 	[ "$(cat "$d/idProduct" 2>/dev/null)" = "4802" ] || continue
 	[ "$(tr -d ' ' < "$d/bNumInterfaces")" = "4" ] || continue
-	p=$(readlink -f "$d/port")
-	[ -w "$p/disable" ] || { echo "gh02: no port/disable for $d" >&2; continue; }
-	# the device node disappears while the port is off, so keep the port path
-	echo 1 > "$p/disable"
+	port_path=$(readlink -f "$d/port")
+	[ -w "$port_path/disable" ] || { echo "gh02: no port/disable for $d" >&2; continue; }
+	echo 1 > "$port_path/disable"
 	sleep 1
-	echo 0 > "$p/disable"
+	echo 0 > "$port_path/disable"
 	echo "gh02: re-enumerated $(basename "$d")"
 done

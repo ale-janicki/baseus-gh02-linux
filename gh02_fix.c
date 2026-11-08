@@ -1,15 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * The Baseus AeQur GH02 2.4G dongle (10d6:4802) gives Linux a 4-interface
- * configuration descriptor whose only output never reaches the headset.
- * Windows and macOS get a 6-interface descriptor with a second output
- * ("usb audio game", EP 0x02); the firmware serves that output on Linux too
- * once the host knows it exists.
- *
- * A kretprobe on usb_get_descriptor() rewrites the dongle's configuration
- * descriptor reads: the 9-byte header read reports the Windows total length,
- * and the full read returns the Windows descriptor.
- */
 #include <linux/kprobes.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -20,7 +9,7 @@
 
 #define GH02_VID		0x10d6
 #define GH02_PID		0x4802
-#define GH02_LINUX_TOTAL	261	/* wTotalLength the dongle reports on Linux */
+#define GH02_LINUX_TOTAL	261
 
 struct gh02_call {
 	struct usb_device *dev;
@@ -34,7 +23,6 @@ static bool gh02_is_dongle(const struct usb_device *dev)
 	       le16_to_cpu(dev->descriptor.idProduct) == GH02_PID;
 }
 
-/* int usb_get_descriptor(dev, type, index, buf, size) */
 static int gh02_entry(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct gh02_call *call = (struct gh02_call *)ri->data;
@@ -43,7 +31,7 @@ static int gh02_entry(struct kretprobe_instance *ri, struct pt_regs *regs)
 	unsigned char index = regs_get_kernel_argument(regs, 2);
 
 	if (!dev || type != USB_DT_CONFIG || index != 0 || !gh02_is_dongle(dev))
-		return 1;	/* skip the return handler */
+		return 1;
 
 	call->dev = dev;
 	call->buf = (unsigned char *)regs_get_kernel_argument(regs, 3);
@@ -60,13 +48,12 @@ static int gh02_return(struct kretprobe_instance *ri, struct pt_regs *regs)
 	if (ret < 4 || buf[1] != USB_DT_CONFIG)
 		return 0;
 	if (get_unaligned_le16(buf + 2) != GH02_LINUX_TOTAL)
-		return 0;	/* not the descriptor we know how to replace */
+		return 0;
 
 	if (call->size == USB_DT_CONFIG_SIZE) {
-		/* Header read: make the caller allocate and ask for the full Windows length. */
 		put_unaligned_le16(sizeof(gh02_cfg), buf + 2);
 		if (ret >= 5)
-			buf[4] = gh02_cfg[4];	/* bNumInterfaces */
+			buf[4] = gh02_cfg[4];
 	} else if (call->size >= (int)sizeof(gh02_cfg)) {
 		memcpy(buf, gh02_cfg, sizeof(gh02_cfg));
 		regs_set_return_value(regs, sizeof(gh02_cfg));

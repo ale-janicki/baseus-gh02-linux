@@ -26,6 +26,14 @@ Changing how Linux enumerates the device does not change which descriptor it get
 
 The module adds a kretprobe on `usb_get_descriptor()`. For this device only (`10d6:4802`, configuration 0, and only when the dongle reports the 261-byte descriptor), it hands the USB core the 291-byte descriptor the dongle gives to Windows (captured with USBPcap). Linux then sees and uses the game output. Nothing is written to the dongle.
 
+## How the module works
+
+- The kretprobe entry handler only keeps calls for configuration descriptor index 0 of `10d6:4802`; any other call skips the return handler.
+- The USB core reads the configuration descriptor twice. On the 9-byte header read, the module rewrites `wTotalLength` (291) and `bNumInterfaces`, so the caller allocates and requests the full Windows length. On the full read it copies the 291-byte descriptor into the buffer and returns that length.
+- Both rewrites apply only when the dongle returned the 261-byte Linux descriptor, so an unknown firmware is left untouched.
+- `gh02-reenumerate` disables and re-enables the dongle's USB port (`port/disable`). It resolves the port path before disabling it, because the device node disappears while the port is off. It only touches a GH02 that still reports 4 interfaces.
+- `gh02_cfg291.h` holds the descriptor captured with USBPcap on Windows (2026-11-07).
+
 ## Install
 
 Requirements: `dkms`, a compiler, and the headers of your running kernel.

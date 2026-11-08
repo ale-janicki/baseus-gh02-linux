@@ -1,5 +1,4 @@
 #!/bin/sh
-# Remove everything install.sh put on the system.
 set -e
 [ "$(id -u)" = 0 ] || { echo "run with sudo" >&2; exit 1; }
 systemctl disable gh02-fix.service 2>/dev/null || true
